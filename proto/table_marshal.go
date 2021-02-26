@@ -2905,7 +2905,7 @@ func (u *marshalInfo) appendV1Extensions(b []byte, m map[int32]Extension, determ
 // The proto package will stop type-asserting to this interface in the future.
 //
 // DO NOT DEPEND ON THIS.
-type newMarshaler interface {
+type NewMarshaler interface {
 	XXX_Size() int
 	XXX_Marshal(b []byte, deterministic bool) ([]byte, error)
 }
@@ -2913,7 +2913,7 @@ type newMarshaler interface {
 // Size returns the encoded size of a protocol buffer message.
 // This is the main entry point.
 func Size(pb Message) int {
-	if m, ok := pb.(newMarshaler); ok {
+	if m, ok := pb.(NewMarshaler); ok {
 		return m.XXX_Size()
 	}
 	if m, ok := pb.(Marshaler); ok {
@@ -2933,8 +2933,22 @@ func Size(pb Message) int {
 // Marshal takes a protocol buffer message
 // and encodes it into the wire format, returning the data.
 // This is the main entry point.
+func MarshalXXX(pb NewMarshaler, buffer []byte) ([]byte, error) {
+	siz := pb.XXX_Size()
+	if buffer == nil || siz > cap(buffer) {
+		buffer = make([]byte, 0, siz)
+	} else {
+		buffer = buffer[0:0:siz]
+	}
+
+	return pb.XXX_Marshal(buffer, false)
+}
+
+// Marshal takes a protocol buffer message
+// and encodes it into the wire format, returning the data.
+// This is the main entry point.
 func Marshal(pb Message) ([]byte, error) {
-	if m, ok := pb.(newMarshaler); ok {
+	if m, ok := pb.(NewMarshaler); ok {
 		siz := m.XXX_Size()
 		b := make([]byte, 0, siz)
 		return m.XXX_Marshal(b, false)
@@ -2966,7 +2980,7 @@ func (p *Buffer) Marshal(pb Message) error {
 			return fmt.Errorf("proto: deterministic not supported by the Marshal method of %T", pb)
 		}
 	}
-	if m, ok := pb.(newMarshaler); ok {
+	if m, ok := pb.(NewMarshaler); ok {
 		siz := m.XXX_Size()
 		p.grow(siz) // make sure buf has enough capacity
 		pp := p.buf[len(p.buf) : len(p.buf) : len(p.buf)+siz]
